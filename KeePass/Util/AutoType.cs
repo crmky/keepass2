@@ -454,6 +454,28 @@ namespace KeePass.Util
 				AutoType.PerformInternal(lCtxs[0], strWindow);
 			else if(lCtxs.Count > 1)
 			{
+                // If only one entry title equals to the window title, don't show the dialog.
+                if (Program.Config.Integration.AutoTypeMatchByTitle)
+                {
+                    int matchedCount = 0;
+                    AutoTypeCtx matchedEntry = null;
+                    foreach (AutoTypeCtx ctx in lCtxs)
+                    {
+                        string title = ctx.Entry.Strings.ReadSafe(PwDefs.TitleField);
+                        if (title == strWindow)
+                        {
+                            matchedCount++;
+                            matchedEntry = ctx;
+                        }
+                    }
+
+                    if (matchedCount == 1)
+                    {
+                        AutoType.PerformInternal(matchedEntry, strWindow);
+                        return true;
+                    }
+                }
+
 				AutoTypeCtxForm dlg = new AutoTypeCtxForm();
 				dlg.InitEx(lCtxs, ilIcons);
 
