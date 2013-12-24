@@ -1269,6 +1269,6 @@
   </Target>
   -->
   <PropertyGroup>
-    <PostBuildEvent>"$(FrameworkSDKDir)bin\sgen.exe" /assembly:"$(TargetPath)" /force /nologo /compiler:/keycontainer:VS_KEY_33430356D8D7D1B8 /compiler:/delaysign-</PostBuildEvent>
+    <PostBuildEvent>REM "$(FrameworkSDKDir)bin\sgen.exe" /assembly:"$(TargetPath)" /force /nologo /compiler:/keycontainer:VS_KEY_33430356D8D7D1B8 /compiler:/delaysign-</PostBuildEvent>
   </PropertyGroup>
 </Project>
