@@ -1,0 +1,6 @@
+*.exe
+*.pdb
+*.suo
+obj/
+/Build/KeePass/
+/Build/KeePassLib/
