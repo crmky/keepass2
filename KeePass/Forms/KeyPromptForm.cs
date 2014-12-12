@@ -54,9 +54,13 @@ namespace KeePass.Forms
 
 		private SecureEdit m_secPassword = new SecureEdit();
 
-		private bool m_bInitializing = false;
+		private bool m_bInitializing = true;
+		private bool m_bDisposed = false;
 
-		private List<string> m_vSuggestions = new List<string>();
+		private AceKeyAssoc m_aKeyAssoc = null;
+		private bool m_bCanModKeyFile = false;
+		private List<string> m_lKeyFileNames = new List<string>();
+		// private List<Image> m_lKeyFileImages = new List<Image>();
 		private bool m_bUaStatePreset = false;
 
 		public CompositeKey CompositeKey
@@ -106,10 +110,10 @@ namespace KeePass.Forms
 
 		private void OnFormLoad(object sender, EventArgs e)
 		{
+			m_bInitializing = true;
+
 			GlobalWindowManager.AddWindow(this);
 			// if(m_bRedirectActivation) Program.MainForm.RedirectActivationPush(this);
-
-			m_bInitializing = true;
 
 			string strBannerTitle = (!string.IsNullOrEmpty(m_strCustomTitle) ?
 				m_strCustomTitle : KPRes.EnterCompositeKey);
@@ -123,8 +127,10 @@ namespace KeePass.Forms
 			FontUtil.AssignDefaultBold(m_cbKeyFile);
 			FontUtil.AssignDefaultBold(m_cbUserAccount);
 
-			m_ttRect.SetToolTip(m_cbHidePassword, KPRes.TogglePasswordAsterisks);
+			// m_ttRect.SetToolTip(m_cbHidePassword, KPRes.TogglePasswordAsterisks);
 			m_ttRect.SetToolTip(m_btnOpenKeyFile, KPRes.KeyFileSelect);
+
+			PwInputControlGroup.ConfigureHideButton(m_cbHidePassword, m_ttRect);
 
 			string strStart = (!string.IsNullOrEmpty(m_strCustomTitle) ?
 				m_strCustomTitle : KPRes.OpenDatabase);
@@ -137,8 +143,8 @@ namespace KeePass.Forms
 			m_secPassword.SecureDesktopMode = m_bSecureDesktop;
 			m_secPassword.Attach(m_tbPassword, ProcessTextChangedPassword, true);
 
-			m_cmbKeyFile.Items.Add(KPRes.NoKeyFileSpecifiedMeta);
-			m_cmbKeyFile.SelectedIndex = 0;
+			// m_cmbKeyFile.OrderedImageList = m_lKeyFileImages;
+			AddKeyFileSuggPriv(KPRes.NoKeyFileSpecifiedMeta, true);
 
 			// Do not directly compare with Program.CommandLineArgs.FileName,
 			// because this may be a relative path instead of an absolute one
@@ -179,18 +185,14 @@ namespace KeePass.Forms
 				if(str != null)
 				{
 					m_cbKeyFile.Checked = true;
-
-					m_cmbKeyFile.Items.Add(str);
-					m_cmbKeyFile.SelectedIndex = m_cmbKeyFile.Items.Count - 1;
+					AddKeyFileSuggPriv(str, true);
 				}
 
 				str = Program.CommandLineArgs[AppDefs.CommandLineOptions.PreSelect];
 				if(str != null)
 				{
 					m_cbKeyFile.Checked = true;
-
-					m_cmbKeyFile.Items.Add(str);
-					m_cmbKeyFile.SelectedIndex = m_cmbKeyFile.Items.Count - 1;
+					AddKeyFileSuggPriv(str, true);
 				}
 			}
 
@@ -221,9 +223,26 @@ namespace KeePass.Forms
 
 			m_bInitializing = false;
 
+			// E.g. command line options have higher priority
+			m_bCanModKeyFile = (m_cmbKeyFile.SelectedIndex == 0);
+
+			m_aKeyAssoc = Program.Config.Defaults.GetKeySources(m_ioInfo);
+			if(m_aKeyAssoc != null)
+			{
+				if(m_aKeyAssoc.KeyFilePath.Length > 0)
+					AddKeyFileSuggPriv(m_aKeyAssoc.KeyFilePath, null);
+
+				if(m_aKeyAssoc.UserAccount && !m_bUaStatePreset)
+					m_cbUserAccount.Checked = true;
+			}
+
+			foreach(KeyProvider prov in Program.KeyProviderPool)
+				AddKeyFileSuggPriv(prov.Name, null);
+
 			// Local, but thread will continue to run anyway
 			Thread th = new Thread(new ThreadStart(this.AsyncFormLoad));
 			th.Start();
+			// ThreadPool.QueueUserWorkItem(new WaitCallback(this.AsyncFormLoad));
 
 			this.BringToFront();
 			this.Activate();
@@ -234,7 +253,7 @@ namespace KeePass.Forms
 		{
 			// Focusing doesn't always work in OnFormLoad;
 			// https://sourceforge.net/p/keepass/feature-requests/1735/
-			if(m_tbPassword.CanFocus) UIUtil.SetFocus(m_tbPassword, this);
+			if(m_tbPassword.CanFocus) UIUtil.ResetFocus(m_tbPassword, this);
 			else if(m_cmbKeyFile.CanFocus) UIUtil.SetFocus(m_cmbKeyFile, this);
 			else if(m_btnOK.CanFocus) UIUtil.SetFocus(m_btnOK, this);
 			else { Debug.Assert(false); }
@@ -250,6 +269,14 @@ namespace KeePass.Forms
 
 		private void CleanUpEx()
 		{
+			Debug.Assert(m_cmbKeyFile.Items.Count == m_lKeyFileNames.Count);
+
+			if(m_bDisposed) { Debug.Assert(false); return; }
+			m_bDisposed = true;
+
+			// m_cmbKeyFile.OrderedImageList = null;
+			// m_lKeyFileImages.Clear();
+
 			m_secPassword.Detach();
 		}
 
@@ -271,7 +298,7 @@ namespace KeePass.Forms
 			if(m_cbKeyFile.Checked && !strKeyFile.Equals(KPRes.NoKeyFileSpecifiedMeta) &&
 				!bIsProvKey)
 			{
-				if(ValidateKeyFileLocation() == false) return false;
+				if(!ValidateKeyFile()) return false;
 
 				try { m_pKey.AddUserKey(new KcpKeyFile(strKeyFile)); }
 				catch(Exception)
@@ -327,7 +354,7 @@ namespace KeePass.Forms
 			return true;
 		}
 
-		private bool ValidateKeyFileLocation()
+		private bool ValidateKeyFile()
 		{
 			string strKeyFile = m_cmbKeyFile.Text;
 			Debug.Assert(strKeyFile != null); if(strKeyFile == null) strKeyFile = string.Empty;
@@ -344,13 +371,16 @@ namespace KeePass.Forms
 				bSuccess = false;
 			}
 
-			if(!bSuccess)
-			{
-				int nPos = m_cmbKeyFile.Items.IndexOf(strKeyFile);
-				if(nPos >= 0) m_cmbKeyFile.Items.RemoveAt(nPos);
-
-				m_cmbKeyFile.SelectedIndex = 0;
-			}
+			// if(!bSuccess)
+			// {
+			//	int nPos = m_cmbKeyFile.Items.IndexOf(strKeyFile);
+			//	if(nPos >= 0)
+			//	{
+			//		m_cmbKeyFile.Items.RemoveAt(nPos);
+			//		m_lKeyFileNames.RemoveAt(nPos);
+			//	}
+			//	m_cmbKeyFile.SelectedIndex = 0;
+			// }
 
 			return bSuccess;
 		}
@@ -472,8 +502,7 @@ namespace KeePass.Forms
 					(ulong)AceKeyUIFlags.UncheckKeyFile) == 0)
 					UIUtil.SetChecked(m_cbKeyFile, true);
 
-				m_cmbKeyFile.Items.Add(strFile);
-				m_cmbKeyFile.SelectedIndex = m_cmbKeyFile.Items.Count - 1;
+				AddKeyFileSuggPriv(strFile, true);
 			}
 
 			EnableUserControls();
@@ -485,14 +514,14 @@ namespace KeePass.Forms
 
 			string strKeyFile = m_cmbKeyFile.Text;
 			Debug.Assert(strKeyFile != null); if(strKeyFile == null) strKeyFile = string.Empty;
-			if(strKeyFile.Equals(KPRes.NoKeyFileSpecifiedMeta) == false)
+			if(!strKeyFile.Equals(KPRes.NoKeyFileSpecifiedMeta))
 			{
-				if(ValidateKeyFileLocation())
-				{
+				// if(ValidateKeyFile())
+				// {
 					if((Program.Config.UI.KeyPromptFlags &
 						(ulong)AceKeyUIFlags.UncheckKeyFile) == 0)
 						UIUtil.SetChecked(m_cbKeyFile, true);
-				}
+				// }
 			}
 			else if((Program.Config.UI.KeyPromptFlags &
 				(ulong)AceKeyUIFlags.CheckKeyFile) == 0)
@@ -523,55 +552,71 @@ namespace KeePass.Forms
 					else if(di.DriveType == DriveType.CDRom)
 						continue;
 
-					if(di.IsReady == false) continue;
-
-					try
-					{
-						List<FileInfo> lFiles = UrlUtil.GetFileInfos(di.RootDirectory,
-							"*." + AppDefs.FileExtension.KeyFile,
-							SearchOption.TopDirectoryOnly);
-
-						foreach(FileInfo fi in lFiles)
-							m_vSuggestions.Add(fi.FullName);
-					}
-					catch(Exception) { Debug.Assert(false); }
+					ThreadPool.QueueUserWorkItem(new WaitCallback(
+						this.AddKeyDriveSuggAsync), di);
 				}
 			}
-
-			foreach(KeyProvider prov in Program.KeyProviderPool)
-				m_vSuggestions.Add(prov.Name);
-
-			if(m_cmbKeyFile.InvokeRequired)
-				m_cmbKeyFile.Invoke(new VoidDelegate(this.PresentKeySourceSuggestions));
-			else PresentKeySourceSuggestions();
 		}
 
-		private void PresentKeySourceSuggestions()
+		private void AddKeyDriveSuggAsync(object oDriveInfo)
 		{
-			foreach(string str in m_vSuggestions)
-				m_cmbKeyFile.Items.Add(str);
-			m_vSuggestions.Clear();
-
-			// E.g. command line options have higher priority
-			bool bCanModKeyFile = (m_cmbKeyFile.SelectedIndex == 0);
-
-			AceKeyAssoc a = Program.Config.Defaults.GetKeySources(m_ioInfo);
-			if(a == null) return;
-
-			if((a.KeyFilePath.Length > 0) && bCanModKeyFile)
+			try
 			{
-				m_cmbKeyFile.Items.Add(a.KeyFilePath);
-				m_cmbKeyFile.SelectedIndex = m_cmbKeyFile.Items.Count - 1;
-			}
+				DriveInfo di = (oDriveInfo as DriveInfo);
+				if(di == null) { Debug.Assert(false); return; }
 
-			if((a.KeyProvider.Length > 0) && bCanModKeyFile)
+				if(!di.IsReady) return;
+
+				List<FileInfo> lFiles = UrlUtil.GetFileInfos(di.RootDirectory,
+					"*." + AppDefs.FileExtension.KeyFile,
+					SearchOption.TopDirectoryOnly);
+
+				foreach(FileInfo fi in lFiles)
+					AddKeyFileSuggAsync(fi.FullName, null);
+			}
+			catch(Exception) { Debug.Assert(false); }
+		}
+
+		private void AddKeyFileSuggAsync(string str, bool? obSelect)
+		{
+			if(m_cmbKeyFile.InvokeRequired)
+				m_cmbKeyFile.BeginInvoke(new AkfsDelegate(
+					this.AddKeyFileSuggPriv), str, obSelect);
+			else AddKeyFileSuggPriv(str, obSelect);
+		}
+
+		private delegate void AkfsDelegate(string str, bool? obSelect);
+		private void AddKeyFileSuggPriv(string str, bool? obSelect)
+		{
+			try
 			{
-				int iProv = m_cmbKeyFile.FindStringExact(a.KeyProvider);
-				if(iProv >= 0) m_cmbKeyFile.SelectedIndex = iProv;
-			}
+				if(m_bDisposed) return; // Slow drive
+				if(string.IsNullOrEmpty(str)) { Debug.Assert(false); return; }
 
-			if(a.UserAccount && !m_bUaStatePreset)
-				m_cbUserAccount.Checked = true;
+				int iIndex = m_lKeyFileNames.IndexOf(str);
+				if(iIndex < 0)
+				{
+					iIndex = m_lKeyFileNames.Count;
+					m_lKeyFileNames.Add(str);
+					// m_lKeyFileImages.Add(img);
+					if(m_cmbKeyFile.Items.Add(str) != iIndex) { Debug.Assert(false); }
+				}
+
+				if(obSelect.HasValue)
+				{
+					if(obSelect.Value) m_cmbKeyFile.SelectedIndex = iIndex;
+				}
+				else if((m_aKeyAssoc != null) && m_bCanModKeyFile)
+				{
+					if(str.Equals(m_aKeyAssoc.KeyFilePath, StrUtil.CaseIgnoreCmp) ||
+						str.Equals(m_aKeyAssoc.KeyProvider, StrUtil.CaseIgnoreCmp))
+					{
+						m_cmbKeyFile.SelectedIndex = iIndex;
+						m_bCanModKeyFile = false;
+					}
+				}
+			}
+			catch(Exception) { Debug.Assert(false); }
 		}
 
 		private void OnFormClosed(object sender, FormClosedEventArgs e)
@@ -581,7 +626,7 @@ namespace KeePass.Forms
 
 		private void OnBtnExit(object sender, EventArgs e)
 		{
-			if(m_bCanExit == false)
+			if(!m_bCanExit)
 			{
 				Debug.Assert(false);
 				this.DialogResult = DialogResult.None;

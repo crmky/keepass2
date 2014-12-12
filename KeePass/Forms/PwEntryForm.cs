@@ -76,7 +76,7 @@ namespace KeePass.Forms
 		private bool m_bLockEnabledState = false;
 		private bool m_bTouchedOnce = false;
 
-		private bool m_bInitializing = false;
+		private bool m_bInitializing = true;
 		private bool m_bForceClosing = false;
 
 		private PwInputControlGroup m_icgPassword = new PwInputControlGroup();
@@ -86,7 +86,7 @@ namespace KeePass.Forms
 		private Image m_imgStdExpire = null;
 		private List<Image> m_lOverrideUrlIcons = new List<Image>();
 
-		private ContextMenuStrip m_ctxBinOpen = null;
+		private CustomContextMenuStripEx m_ctxBinOpen = null;
 		private DynamicMenu m_dynBinOpen = null;
 
 		private readonly string DeriveFromPrevious = "(" +
@@ -103,6 +103,13 @@ namespace KeePass.Forms
 
 		private const PwCompareOptions m_cmpOpt = (PwCompareOptions.NullEmptyEquivStd |
 			PwCompareOptions.IgnoreTimes);
+
+		private enum ListSelRestore
+		{
+			None = 0,
+			ByIndex,
+			ByRef
+		}
 
 		public bool HasModifiedEntry
 		{
@@ -206,6 +213,8 @@ namespace KeePass.Forms
 				// else m_btnIcon.Image = m_ilIcons.Images[(int)m_pwEntryIcon];
 
 				Image imgCustom = m_pwDatabase.GetCustomIcon(m_pwCustomIconID);
+				if(imgCustom != null)
+					imgCustom = DpiUtil.ScaleImage(imgCustom, false);
 				// m_btnIcon.Image = (imgCustom ?? m_ilIcons.Images[(int)m_pwEntryIcon]);
 				UIUtil.SetButtonImage(m_btnIcon, (imgCustom ?? m_ilIcons.Images[
 					(int)m_pwEntryIcon]), true);
@@ -219,8 +228,8 @@ namespace KeePass.Forms
 
 			bool bHideInitial = m_cbHidePassword.Checked;
 			m_icgPassword.Attach(m_tbPassword, m_cbHidePassword, m_lblPasswordRepeat,
-				m_tbRepeatPassword, m_lblQuality, m_pbQuality, m_lblQualityBitsText,
-				this, bHideInitial, false);
+				m_tbRepeatPassword, m_lblQuality, m_pbQuality, m_lblQualityInfo,
+				m_ttRect, this, bHideInitial, false);
 
 			if(m_pwEntry.Expires)
 			{
@@ -268,11 +277,11 @@ namespace KeePass.Forms
 			m_lvStrings.SmallImageList = m_ilIcons;
 			m_lvBinaries.SmallImageList = m_ilIcons;
 
-			int nWidth = m_lvStrings.ClientRectangle.Width / 2;
+			int nWidth = m_lvStrings.ClientSize.Width / 2;
 			m_lvStrings.Columns.Add(KPRes.FieldName, nWidth);
 			m_lvStrings.Columns.Add(KPRes.FieldValue, nWidth);
 
-			nWidth = m_lvBinaries.ClientRectangle.Width / 2;
+			nWidth = m_lvBinaries.ClientSize.Width / 2;
 			m_lvBinaries.Columns.Add(KPRes.Attachments, nWidth);
 			m_lvBinaries.Columns.Add(KPRes.Size, nWidth, HorizontalAlignment.Right);
 
@@ -291,6 +300,12 @@ namespace KeePass.Forms
 
 		// Public for plugins
 		public void UpdateEntryStrings(bool bGuiToInternal, bool bSetRepeatPw)
+		{
+			UpdateEntryStrings(bGuiToInternal, bSetRepeatPw, false);
+		}
+
+		public void UpdateEntryStrings(bool bGuiToInternal, bool bSetRepeatPw,
+			bool bUpdateState)
 		{
 			if(bGuiToInternal)
 			{
@@ -321,7 +336,8 @@ namespace KeePass.Forms
 				m_tbUrl.Text = m_vStrings.ReadSafe(PwDefs.UrlField);
 				m_rtNotes.Text = m_vStrings.ReadSafe(PwDefs.NotesField);
 
-				int iTopVisible = UIUtil.GetTopVisibleItem(m_lvStrings);
+				UIScrollInfo s = UIUtil.GetScrollInfo(m_lvStrings, true);
+				m_lvStrings.BeginUpdate();
 				m_lvStrings.Items.Clear();
 				foreach(KeyValuePair<string, ProtectedString> kvpStr in m_vStrings)
 				{
@@ -342,8 +358,11 @@ namespace KeePass.Forms
 						}
 					}
 				}
-				UIUtil.SetTopVisibleItem(m_lvStrings, iTopVisible);
+				UIUtil.Scroll(m_lvStrings, s, false);
+				m_lvStrings.EndUpdate();
 			}
+
+			if(bUpdateState) EnableControlsEx();
 		}
 
 		// Public for plugins
@@ -363,7 +382,8 @@ namespace KeePass.Forms
 			if(bGuiToInternal) { }
 			else // Internal to GUI
 			{
-				int iTopVisible = UIUtil.GetTopVisibleItem(m_lvBinaries);
+				UIScrollInfo s = UIUtil.GetScrollInfo(m_lvBinaries, true);
+				m_lvBinaries.BeginUpdate();
 				m_lvBinaries.Items.Clear();
 				foreach(KeyValuePair<string, ProtectedBinary> kvpBin in m_vBinaries)
 				{
@@ -372,7 +392,7 @@ namespace KeePass.Forms
 					ListViewItem lvi = m_lvBinaries.Items.Add(kvpBin.Key, (int)pwIcon);
 					lvi.SubItems.Add(StrUtil.FormatDataSizeKB(kvpBin.Value.Length));
 				}
-				UIUtil.SetTopVisibleItem(m_lvBinaries, iTopVisible);
+				UIUtil.Scroll(m_lvBinaries, s, false);
 
 				if(strFocusItem != null)
 				{
@@ -385,6 +405,8 @@ namespace KeePass.Forms
 					}
 					else { Debug.Assert(false); }
 				}
+
+				m_lvBinaries.EndUpdate();
 			}
 
 			if(bUpdateState) EnableControlsEx();
@@ -432,7 +454,7 @@ namespace KeePass.Forms
 			m_lvAutoType.SmallImageList = m_ilIcons;
 
 			m_cbAutoTypeEnabled.Checked = m_atConfig.Enabled;
-			m_cbAutoTypeObfuscation.Checked = !(m_atConfig.ObfuscationOptions ==
+			m_cbAutoTypeObfuscation.Checked = (m_atConfig.ObfuscationOptions !=
 				AutoTypeObfuscationOptions.None);
 
 			string strDefaultSeq = m_atConfig.DefaultSequence;
@@ -461,7 +483,7 @@ namespace KeePass.Forms
 			m_lvAutoType.Columns.Add(KPRes.TargetWindow, nWidth);
 			m_lvAutoType.Columns.Add(KPRes.Sequence, nWidth);
 
-			UpdateAutoTypeList();
+			UpdateAutoTypeList(ListSelRestore.None, null, false);
 
 			if(m_pwEditMode == PwEditMode.ViewReadOnlyEntry)
 			{
@@ -469,14 +491,38 @@ namespace KeePass.Forms
 					m_rbAutoTypeSeqInherit.Enabled =
 					m_rbAutoTypeOverride.Enabled = m_btnAutoTypeAdd.Enabled =
 					m_btnAutoTypeDelete.Enabled = m_btnAutoTypeEdit.Enabled = false;
-
+				m_btnAutoTypeUp.Enabled = m_btnAutoTypeDown.Enabled = false;
 				m_tbDefaultAutoTypeSeq.Enabled = m_btnAutoTypeEditDefault.Enabled =
 					false;
 			}
 		}
 
-		private void UpdateAutoTypeList()
+		private void UpdateAutoTypeList(ListSelRestore r, AutoTypeAssociation aToSel,
+			bool bUpdateState)
 		{
+			UIScrollInfo uiScroll = UIUtil.GetScrollInfo(m_lvAutoType, true);
+			int s = m_lvAutoType.SelectedIndices.Count;
+
+			int[] vSel = null;
+			List<AutoTypeAssociation> lSel = new List<AutoTypeAssociation>();
+			if(aToSel != null) lSel.Add(aToSel);
+
+			if((r == ListSelRestore.ByIndex) && (s > 0))
+			{
+				vSel = new int[s];
+				m_lvAutoType.SelectedIndices.CopyTo(vSel, 0);
+			}
+			else if(r == ListSelRestore.ByRef)
+			{
+				foreach(ListViewItem lviSel in m_lvAutoType.SelectedItems)
+				{
+					AutoTypeAssociation a = (lviSel.Tag as AutoTypeAssociation);
+					if(a == null) { Debug.Assert(false); }
+					else lSel.Add(a);
+				}
+			}
+
+			m_lvAutoType.BeginUpdate();
 			m_lvAutoType.Items.Clear();
 
 			string strDefault = "(" + KPRes.Default + ")";
@@ -484,7 +530,25 @@ namespace KeePass.Forms
 			{
 				ListViewItem lvi = m_lvAutoType.Items.Add(a.WindowName, (int)PwIcon.List);
 				lvi.SubItems.Add((a.Sequence.Length > 0) ? a.Sequence : strDefault);
+
+				lvi.Tag = a;
+
+				foreach(AutoTypeAssociation aSel in lSel)
+				{
+					if(object.ReferenceEquals(a, aSel)) lvi.Selected = true;
+				}
 			}
+
+			if(vSel != null)
+			{
+				foreach(int iSel in vSel)
+					m_lvAutoType.Items[iSel].Selected = true;
+			}
+
+			UIUtil.Scroll(m_lvAutoType, uiScroll, true);
+			m_lvAutoType.EndUpdate();
+
+			if(bUpdateState) EnableControlsEx();
 		}
 
 		private void InitHistoryTab()
@@ -496,7 +560,7 @@ namespace KeePass.Forms
 			m_lvHistory.Columns.Add(KPRes.UserName);
 			m_lvHistory.Columns.Add(KPRes.Size, 72, HorizontalAlignment.Right);
 
-			UpdateHistoryList();
+			UpdateHistoryList(false);
 
 			if(m_pwEditMode == PwEditMode.ViewReadOnlyEntry)
 			{
@@ -505,8 +569,11 @@ namespace KeePass.Forms
 			}
 		}
 
-		private void UpdateHistoryList()
+		private void UpdateHistoryList(bool bUpdateState)
 		{
+			UIScrollInfo s = UIUtil.GetScrollInfo(m_lvHistory, true);
+
+			m_lvHistory.BeginUpdate();
 			m_lvHistory.Items.Clear();
 
 			foreach(PwEntry pe in m_vHistory)
@@ -518,31 +585,19 @@ namespace KeePass.Forms
 				lvi.SubItems.Add(pe.Strings.ReadSafe(PwDefs.UserNameField));
 				lvi.SubItems.Add(StrUtil.FormatDataSizeKB(pe.GetSize()));
 			}
+
+			UIUtil.Scroll(m_lvHistory, s, true);
+			m_lvHistory.EndUpdate();
+
+			if(bUpdateState) EnableControlsEx();
 		}
 
 		private void ResizeColumnHeaders()
 		{
-			Debug.Assert(m_lvStrings.Columns.Count == 2);
-			int dx = m_lvStrings.ClientRectangle.Width;
-			m_lvStrings.Columns[0].Width = dx / 2;
-			m_lvStrings.Columns[1].Width = dx / 2;
-
-			Debug.Assert(m_lvBinaries.Columns.Count == 2);
-			dx = m_lvBinaries.ClientRectangle.Width;
-			m_lvBinaries.Columns[0].Width = (dx * 4) / 5;
-			m_lvBinaries.Columns[1].Width = dx / 5;
-
-			Debug.Assert(m_lvAutoType.Columns.Count == 2);
-			dx = m_lvAutoType.ClientRectangle.Width;
-			m_lvAutoType.Columns[0].Width = m_lvAutoType.Columns[1].Width = dx / 2;
-
-			Debug.Assert(m_lvHistory.Columns.Count == 4);
-			dx = m_lvHistory.ClientRectangle.Width;
-			int dt = dx / 85;
-			m_lvHistory.Columns[0].Width = (dx * 2) / 7 + dt;
-			m_lvHistory.Columns[1].Width = (dx * 2) / 7;
-			m_lvHistory.Columns[2].Width = ((dx * 2) / 7) - (dt * 2);
-			m_lvHistory.Columns[3].Width = (dx / 7) + dt;
+			UIUtil.ResizeColumns(m_lvStrings, true);
+			UIUtil.ResizeColumns(m_lvBinaries, new int[] { 4, 1 }, true);
+			UIUtil.ResizeColumns(m_lvAutoType, true);
+			UIUtil.ResizeColumns(m_lvHistory, new int[] { 21, 20, 18, 11 }, true);
 		}
 
 		private void OnFormLoad(object sender, EventArgs e)
@@ -551,6 +606,8 @@ namespace KeePass.Forms
 			Debug.Assert(m_pwEditMode != PwEditMode.Invalid); if(m_pwEditMode == PwEditMode.Invalid) throw new ArgumentException();
 			Debug.Assert(m_pwDatabase != null); if(m_pwDatabase == null) throw new InvalidOperationException();
 			Debug.Assert(m_ilIcons != null); if(m_ilIcons == null) throw new InvalidOperationException();
+
+			m_bInitializing = true;
 
 			GlobalWindowManager.AddWindow(this);
 			GlobalWindowManager.CustomizeControl(m_ctxTools);
@@ -561,7 +618,7 @@ namespace KeePass.Forms
 			StrUtil.NormalizeNewLines(m_pwInitialEntry.Strings, true);
 
 			m_ttRect.SetToolTip(m_btnIcon, KPRes.SelectIcon);
-			m_ttRect.SetToolTip(m_cbHidePassword, KPRes.TogglePasswordAsterisks);
+			// m_ttRect.SetToolTip(m_cbHidePassword, KPRes.TogglePasswordAsterisks);
 			m_ttRect.SetToolTip(m_btnGenPw, KPRes.GeneratePassword);
 			m_ttRect.SetToolTip(m_btnStandardExpires, KPRes.StandardExpireSelect);
 
@@ -571,7 +628,7 @@ namespace KeePass.Forms
 			m_dynGenProfiles.MenuClick += this.OnProfilesDynamicMenuClick;
 			m_ctxNotes.Attach(m_rtNotes, this);
 
-			m_ctxBinOpen = new ContextMenuStrip();
+			m_ctxBinOpen = new CustomContextMenuStripEx();
 			m_ctxBinOpen.Opening += this.OnCtxBinOpenOpening;
 			m_dynBinOpen = new DynamicMenu(m_ctxBinOpen.Items);
 			m_dynBinOpen.MenuClick += this.OnDynBinOpen;
@@ -618,8 +675,6 @@ namespace KeePass.Forms
 
 			UIUtil.PrepareStandardMultilineControl(m_rtNotes, true, true);
 
-			m_bInitializing = true;
-
 			bool bForceHide = !AppPolicy.Current.UnhidePasswords;
 			if(Program.Config.UI.Hiding.SeparateHidingSettings)
 				m_cbHidePassword.Checked = (Program.Config.UI.Hiding.HideInEntryWindow || bForceHide);
@@ -636,7 +691,7 @@ namespace KeePass.Forms
 			InitAutoTypeTab();
 			InitHistoryTab();
 
-			UpdateEntryStrings(false, true);
+			UpdateEntryStrings(false, true, false);
 			UpdateEntryBinaries(false, false);
 
 			if(PwDefs.IsTanEntry(m_pwEntry)) m_btnTools.Enabled = false;
@@ -681,6 +736,9 @@ namespace KeePass.Forms
 
 			m_btnPickFgColor.Text = KPRes.SelectColor;
 			m_btnPickBgColor.Text = KPRes.SelectColor;
+
+			m_btnAutoTypeUp.Text = "\u2191"; // Upwards arrow
+			m_btnAutoTypeDown.Text = "\u2193"; // Downwards arrow
 		}
 
 		private void EnableControlsEx()
@@ -720,6 +778,9 @@ namespace KeePass.Forms
 			{
 				m_btnAutoTypeEdit.Enabled = (bATEnabled && (nAutoTypeSel == 1));
 				m_btnAutoTypeDelete.Enabled = (bATEnabled && (nAutoTypeSel >= 1));
+
+				m_btnAutoTypeUp.Enabled = (bATEnabled && (nAutoTypeSel >= 1));
+				m_btnAutoTypeDown.Enabled = (bATEnabled && (nAutoTypeSel >= 1));
 			}
 
 			int nAccumSel = nStringsSel + nBinSel + nAutoTypeSel;
@@ -771,7 +832,7 @@ namespace KeePass.Forms
 			peTarget.Expires = m_cgExpiry.Checked;
 			if(peTarget.Expires) peTarget.ExpiryTime = m_cgExpiry.Value;
 
-			UpdateEntryStrings(true, false);
+			UpdateEntryStrings(true, false, false);
 
 			peTarget.Strings = m_vStrings;
 			peTarget.Binaries = m_vBinaries;
@@ -886,14 +947,14 @@ namespace KeePass.Forms
 		{
 			if(m_pwEditMode == PwEditMode.ViewReadOnlyEntry) return;
 
-			UpdateEntryStrings(true, false);
+			UpdateEntryStrings(true, false, false);
 
 			EditStringForm esf = new EditStringForm();
 			esf.InitEx(m_vStrings, null, null, m_pwDatabase);
 
 			if(UIUtil.ShowDialogAndDestroy(esf) == DialogResult.OK)
 			{
-				UpdateEntryStrings(false, false);
+				UpdateEntryStrings(false, false, true);
 				ResizeColumnHeaders();
 			}
 		}
@@ -905,7 +966,7 @@ namespace KeePass.Forms
 			ListView.SelectedListViewItemCollection vSel = m_lvStrings.SelectedItems;
 			if(vSel.Count <= 0) return;
 
-			UpdateEntryStrings(true, false);
+			UpdateEntryStrings(true, false, false);
 
 			string strName = vSel[0].Text;
 			ProtectedString psValue = m_vStrings.Get(strName);
@@ -914,24 +975,24 @@ namespace KeePass.Forms
 			EditStringForm esf = new EditStringForm();
 			esf.InitEx(m_vStrings, strName, psValue, m_pwDatabase);
 			if(UIUtil.ShowDialogAndDestroy(esf) == DialogResult.OK)
-				UpdateEntryStrings(false, false);
+				UpdateEntryStrings(false, false, true);
 		}
 
 		private void OnBtnStrDelete(object sender, EventArgs e)
 		{
 			if(m_pwEditMode == PwEditMode.ViewReadOnlyEntry) return;
 
-			UpdateEntryStrings(true, false);
+			UpdateEntryStrings(true, false, false);
 
-			ListView.SelectedListViewItemCollection lvsicSel = m_lvStrings.SelectedItems;
-			for(int i = 0; i < lvsicSel.Count; ++i)
+			ListView.SelectedListViewItemCollection lvsc = m_lvStrings.SelectedItems;
+			foreach(ListViewItem lvi in lvsc)
 			{
-				if(!m_vStrings.Remove(lvsicSel[i].Text)) { Debug.Assert(false); }
+				if(!m_vStrings.Remove(lvi.Text)) { Debug.Assert(false); }
 			}
 
-			if(lvsicSel.Count > 0)
+			if(lvsc.Count > 0)
 			{
-				UpdateEntryStrings(false, false);
+				UpdateEntryStrings(false, false, true);
 				ResizeColumnHeaders();
 			}
 		}
@@ -948,14 +1009,16 @@ namespace KeePass.Forms
 			UpdateEntryBinaries(true, false);
 
 			ListView.SelectedListViewItemCollection lvsc = m_lvBinaries.SelectedItems;
-			int nSelCount = lvsc.Count;
-			if(nSelCount == 0) { Debug.Assert(false); return; }
+			foreach(ListViewItem lvi in lvsc)
+			{
+				if(!m_vBinaries.Remove(lvi.Text)) { Debug.Assert(false); }
+			}
 
-			for(int i = 0; i < nSelCount; ++i)
-				m_vBinaries.Remove(lvsc[nSelCount - i - 1].Text);
-
-			UpdateEntryBinaries(false, true);
-			ResizeColumnHeaders();
+			if(lvsc.Count > 0)
+			{
+				UpdateEntryBinaries(false, true);
+				ResizeColumnHeaders();
+			}
 		}
 
 		private void OnBtnBinSave(object sender, EventArgs e)
@@ -1026,7 +1089,12 @@ namespace KeePass.Forms
 
 			if(UIUtil.ShowDialogAndDestroy(dlg) == DialogResult.OK)
 			{
-				UpdateAutoTypeList();
+				AutoTypeAssociation a = null;
+				if(m_atConfig.AssociationsCount > 0)
+					a = m_atConfig.GetAt(m_atConfig.AssociationsCount - 1);
+				else { Debug.Assert(false); }
+
+				UpdateAutoTypeList(ListSelRestore.None, a, true);
 				ResizeColumnHeaders();
 			}
 		}
@@ -1043,7 +1111,7 @@ namespace KeePass.Forms
 				m_vStrings);
 
 			if(UIUtil.ShowDialogAndDestroy(dlg) == DialogResult.OK)
-				UpdateAutoTypeList();
+				UpdateAutoTypeList(ListSelRestore.ByIndex, null, true);
 		}
 
 		private void OnBtnAutoTypeDelete(object sender, EventArgs e)
@@ -1060,7 +1128,7 @@ namespace KeePass.Forms
 					m_atConfig.RemoveAt(j);
 			}
 
-			UpdateAutoTypeList();
+			UpdateAutoTypeList(ListSelRestore.None, null, true);
 			ResizeColumnHeaders();
 		}
 
@@ -1087,15 +1155,19 @@ namespace KeePass.Forms
 
 			Debug.Assert(m_vHistory.UCount == m_lvHistory.Items.Count);
 
-			ListView.SelectedIndexCollection lvsi = m_lvHistory.SelectedIndices;
-			int nSelCount = lvsi.Count;
+			ListView.SelectedIndexCollection lvsc = m_lvHistory.SelectedIndices;
+			int n = lvsc.Count; // Getting Count sends a message
+			if(n == 0) return;
 
-			if(nSelCount == 0) return;
+			// LVSIC: one access by index requires O(n) time, thus copy
+			// all to an array (which requires O(1) for each element)
+			int[] v = new int[n];
+			lvsc.CopyTo(v, 0);
 
-			for(int i = 0; i < lvsi.Count; ++i)
-				m_vHistory.Remove(m_vHistory.GetAt((uint)lvsi[nSelCount - i - 1]));
+			for(int i = 0; i < n; ++i)
+				m_vHistory.RemoveAt((uint)v[n - i - 1]);
 
-			UpdateHistoryList();
+			UpdateHistoryList(true);
 			ResizeColumnHeaders();
 		}
 
@@ -1226,8 +1298,8 @@ namespace KeePass.Forms
 				if(!ipf.ChosenCustomIconUuid.Equals(PwUuid.Zero)) // Custom icon
 				{
 					m_pwCustomIconID = ipf.ChosenCustomIconUuid;
-					UIUtil.SetButtonImage(m_btnIcon, m_pwDatabase.GetCustomIcon(
-						m_pwCustomIconID), true);
+					UIUtil.SetButtonImage(m_btnIcon, DpiUtil.ScaleImage(
+						m_pwDatabase.GetCustomIcon(m_pwCustomIconID), false), true);
 				}
 				else // Standard icon
 				{
@@ -1335,10 +1407,9 @@ namespace KeePass.Forms
 			}
 			else { Debug.Assert(false); }
 
-			UpdateEntryStrings(true, false);
+			UpdateEntryStrings(true, false, false);
 			m_vStrings.Remove(lvi.Text);
-			UpdateEntryStrings(false, false);
-			EnableControlsEx();
+			UpdateEntryStrings(false, false, true);
 		}
 
 		private void OnBtnStrMove(object sender, EventArgs e)
@@ -1368,16 +1439,14 @@ namespace KeePass.Forms
 
 		private void OnPwGenOpen(object sender, EventArgs e)
 		{
-			PwGeneratorForm pgf = new PwGeneratorForm();
-
 			byte[] pbCurPassword = m_icgPassword.GetPasswordUtf8();
 			bool bAtLeastOneChar = (pbCurPassword.Length > 0);
 			ProtectedString ps = new ProtectedString(true, pbCurPassword);
 			Array.Clear(pbCurPassword, 0, pbCurPassword.Length);
 			PwProfile opt = PwProfile.DeriveFromPassword(ps);
 
+			PwGeneratorForm pgf = new PwGeneratorForm();
 			pgf.InitEx((bAtLeastOneChar ? opt : null), true, false);
-			// pgf.InitEx(null, true, false);
 
 			if(pgf.ShowDialog() == DialogResult.OK)
 			{
@@ -1397,21 +1466,24 @@ namespace KeePass.Forms
 
 		private void OnProfilesDynamicMenuClick(object sender, DynamicMenuEventArgs e)
 		{
+			string strProfile = (e.Tag as string);
+			if(strProfile == null) { Debug.Assert(false); return; }
+
 			PwProfile pwp = null;
-			if(e.ItemName == DeriveFromPrevious)
+			if(strProfile == DeriveFromPrevious)
 			{
 				byte[] pbCur = m_icgPassword.GetPasswordUtf8();
 				ProtectedString psCur = new ProtectedString(true, pbCur);
 				MemUtil.ZeroByteArray(pbCur);
 				pwp = PwProfile.DeriveFromPassword(psCur);
 			}
-			else if(e.ItemName == AutoGenProfile)
+			else if(strProfile == AutoGenProfile)
 				pwp = Program.Config.PasswordGenerator.AutoGeneratedPasswordsProfile;
 			else
 			{
 				foreach(PwProfile pwgo in PwGeneratorUtil.GetAllProfiles(false))
 				{
-					if(pwgo.Name == e.ItemName)
+					if(pwgo.Name == strProfile)
 					{
 						pwp = pwgo;
 						break;
@@ -1434,8 +1506,10 @@ namespace KeePass.Forms
 		{
 			m_dynGenProfiles.Clear();
 			m_dynGenProfiles.AddSeparator();
-			m_dynGenProfiles.AddItem(DeriveFromPrevious, Properties.Resources.B16x16_CompFile);
-			m_dynGenProfiles.AddItem(AutoGenProfile, Properties.Resources.B16x16_FileNew);
+
+			List<char> lAvailKeys = new List<char>(PwCharSet.MenuAccels);
+			DynAddProfile(DeriveFromPrevious, Properties.Resources.B16x16_CompFile, lAvailKeys);
+			DynAddProfile(AutoGenProfile, Properties.Resources.B16x16_FileNew, lAvailKeys);
 
 			bool bHideBuiltIn = ((Program.Config.UI.UIFlags &
 				(ulong)AceUIFlags.HideBuiltInPwGenPrfInEntryDlg) != 0);
@@ -1455,9 +1529,17 @@ namespace KeePass.Forms
 
 			if(l.Count > 0) m_dynGenProfiles.AddSeparator();
 			foreach(KeyValuePair<string, Image> kvp in l)
-				m_dynGenProfiles.AddItem(kvp.Key, kvp.Value);
+				DynAddProfile(kvp.Key, kvp.Value, lAvailKeys);
 
 			m_ctxPwGen.Show(m_btnGenPw, new Point(0, m_btnGenPw.Height));
+		}
+
+		private void DynAddProfile(string strProfile, Image img, List<char> lAvailKeys)
+		{
+			string strText = StrUtil.EncodeMenuText(strProfile);
+			strText = StrUtil.AddAccelerator(strText, lAvailKeys);
+
+			m_dynGenProfiles.AddItem(strText, img, strProfile);
 		}
 
 		private void OnPickForegroundColor(object sender, EventArgs e)
@@ -1933,18 +2015,70 @@ namespace KeePass.Forms
 		{
 			if(string.IsNullOrEmpty(strOverride)) { Debug.Assert(false); return; }
 
-			const int qSize = 16;
+			int w = DpiUtil.ScaleIntX(16);
+			int h = DpiUtil.ScaleIntY(16);
 
 			Image img = null;
 			string str = UrlUtil.GetQuotedAppPath(strIconPath ?? string.Empty);
 			str = str.Trim();
-			if(str.Length > 0) img = UIUtil.GetFileIcon(str, qSize, qSize);
+			if(str.Length > 0) img = UIUtil.GetFileIcon(str, w, h);
 
 			if(img == null)
 				img = UIUtil.CreateScaledImage(m_ilIcons.Images[
-					(int)PwIcon.Console], qSize, qSize);
+					(int)PwIcon.Console], w, h);
 
 			l.Add(new KeyValuePair<string, Image>(strOverride, img));
+		}
+
+		private void OnBtnAutoTypeUp(object sender, EventArgs e)
+		{
+			MoveSelectedAutoTypeItems(false);
+		}
+
+		private void OnBtnAutoTypeDown(object sender, EventArgs e)
+		{
+			MoveSelectedAutoTypeItems(true);
+		}
+
+		private void MoveSelectedAutoTypeItems(bool bDown)
+		{
+			if(m_pwEditMode == PwEditMode.ViewReadOnlyEntry) return;
+
+			int n = m_lvAutoType.Items.Count;
+			int s = m_lvAutoType.SelectedIndices.Count;
+			if(s == 0) return;
+
+			int[] v = new int[s];
+			m_lvAutoType.SelectedIndices.CopyTo(v, 0);
+			Array.Sort(v);
+
+			if((bDown && (v[s - 1] >= (n - 1))) || (!bDown && (v[0] <= 0)))
+				return; // Moving as a block is not possible
+
+			int iStart = (bDown ? (s - 1) : 0);
+			int iExcl = (bDown ? -1 : s);
+			int iStep = (bDown ? -1 : 1);
+
+			for(int i = iStart; i != iExcl; i += iStep)
+			{
+				int p = v[i];
+
+				AutoTypeAssociation a = m_atConfig.GetAt(p);
+				if(bDown)
+				{
+					Debug.Assert(p < (n - 1));
+					m_atConfig.RemoveAt(p);
+					m_atConfig.Insert(p + 1, a);
+				}
+				else // Up
+				{
+					Debug.Assert(p > 0);
+					m_atConfig.RemoveAt(p);
+					m_atConfig.Insert(p - 1, a);
+				}
+			}
+
+			UpdateAutoTypeList(ListSelRestore.ByRef, null, true);
 		}
 	}
 }

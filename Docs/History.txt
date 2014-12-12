@@ -1,3 +1,266 @@
+2014-10-08: 2.28
+- Enhanced high DPI support
+- Added trigger action 'Show message box' (which can abort the
+  current trigger execution or execute a command line / URL)
+- The 'Database has unsaved changes' trigger condition now
+  supports choosing between the active database and the
+  database that triggered the event
+- Added parameter for the trigger action 'Activate database
+  (select tab)' that allows activating the database that
+  triggered the event
+- Auto-Type: added workaround for KiTTY's default Ctrl+Alt
+  behavior (which differs from Windows' behavior)
+- Auto-Type: added workaround for PuTTYjp's default Ctrl+Alt
+  behavior (which differs from Windows' behavior)
+- Added up/down arrow buttons for reordering auto-type
+  associations in the entry editing dialog
+- While entering the master key on a secure desktop, dimmed
+  screenshots are now also displayed on all non-primary screens
+- Added support for importing VisKeeper 3.3.0 TXT files
+- The group tree view is now saved and restored during most
+  group tree updates
+- In the main entry list, multiple entries can now be moved by
+  one step up/down at once
+- If Caps Lock is on, a balloon tip indicating this is now also
+  displayed for password text boxes immediately after opening a
+  dialog (where the password text box is the initially focused
+  control)
+- In the cases where Windows would display outdated thumbnail
+  and peek preview images for the main window, KeePass now
+  requests Windows to use a static bitmap instead (showing only
+  the KeePass logo)
+- Added fallback method for parsing dates/times (the default
+  parser fails for some custom formats specified in the Control
+  Panel)
+- Added workaround for .NET ToolStrip height bug
+- Added own process memory protection for Unix-like systems (as
+  Mono doesn't provide any effective memory protection method)
+- On Unix-like systems, Shift+F10 (and Ctrl+Alt+5 and
+  Ctrl+NumPad5 on Mac OS X) now shows the context menu in most
+  list/tree view controls and rich text boxes (like on Windows)
+- KPScript: for the 'Import' command, a different master key
+  can now be specified using the standard master key command
+  line parameters with the prefix 'imp_' (e.g. -imp_pw:Secret)
+- KPScript: added option '-FailIfNotExists' for the
+  'GetEntryString' command
+- KPScript: added '-refx-Group' and '-refx-GroupPath' entry
+  identification parameters
+
+- Improved compatibility with ClearType
+- Improved support for high contrast themes
+- When duplicating a group/entry, the creation time and the
+  last access time of the copy are now set to the current time
+- Character picker dialog: initially the text box is now
+  focused, improved tab order, and picked characters are now
+  inserted at the current insertion point (instead of the end)
+- Ctrl+Tab is now handled only once when the database tab bar
+  has the focus
+- When exporting to a KeePass 1.x KDB file, a warning/error is
+  now shown if the master key contains/is a Windows User
+  Account
+- Unknown trigger events/conditions/actions are now ignored by
+  the trigger dialog
+- Reduced group tree view flickering
+- Improved default value for the entry history size limit
+- Improved menu check mark and radio images
+- Improved list view column resizing
+- Improved list view scrolling
+- Secure edit control performance improvements
+- In some cases, double-clicking the tray icon now brings
+  KeePass to the foreground
+- Improved concurrent UI behavior during auto-type
+- Auto-Type: improved compatibility with keyboard layouts with
+  combining apostrophes, quotation marks and tildes
+- Auto-Type: improved virtual key translation on Unix-like
+  systems
+- KPScript: the 'EditEntry' command now also updates the time
+  fields of all affected entries
+- KPScript: the 'DeleteEntry' and 'DeleteAllEntries' commands
+  now create deleted object information (improving
+  synchronization behavior)
+- Upgraded installer
+- Various code optimizations
+- Minor other improvements
+
+- When auto-typing a sequence containing a {NEWPASSWORD}
+  placeholder, the raw new password is now stored (in the
+  password field of the entry), not its corresponding auto-type
+  sequence
+- Synchronizing two unrelated databases now always works as
+  expected
+
+2014-07-06: 2.27
+- The estimated password quality (in bits) is now displayed on
+  the quality progress bar, and right of the quality progress
+  bar the length of the password is displayed
+- Auto-Type: before sending a character using a key combination
+  involving at least two modifiers, KeePass now first tests
+  whether this key combination is a registered system-wide hot
+  key, and, if so, tries to send the character as a Unicode
+  packet instead
+- Auto-Type: added workaround for Cygwin's default Ctrl+Alt
+  behavior (which differs from Windows' behavior)
+- Auto-Type: added {APPACTIVATE ...} command
+- {HMACOTP} placeholder: added support for specifying the
+  shared secret using the entry strings 'HmacOtp-Secret-Hex'
+  (secret as hex string), 'HmacOtp-Secret-Base32' (secret as
+  Base32 string) and 'HmacOtp-Secret-Base64' (secret as Base64
+  string)
+- {T-CONV:...} placeholder: added 'Uri-Dec' type (for
+  converting the string to its URI-unescaped representation)
+- Added placeholders: {URL:USERINFO}, {URL:USERNAME} and
+  {URL:PASSWORD}
+- Added placeholders: {BASE}, {BASE:RMVSCM}, {BASE:SCM},
+  {BASE:HOST}, {BASE:PORT}, {BASE:PATH}, {BASE:QUERY},
+  {BASE:USERINFO}, {BASE:USERNAME}, {BASE:PASSWORD} (within an
+  URL override, each of these placeholders is replaced by the
+  specified part of the string that is being overridden)
+- Added {NEWPASSWORD:/Profile/} placeholder, which generates a
+  new password for the current entry using the specified
+  password generator profile
+- Pattern-based password generator: the '^' character now
+  removes the next character from the current custom character
+  set (for example, [a^y] contains all lower-case alphanumeric
+  characters except 'y')
+- Enhanced syntax highlighting in the sequence field of the
+  'Edit Auto-Type Item' dialog
+- Added option 'Do not ask whether to synchronize or overwrite;
+  force synchronization'
+- Added synchronization support for the group behavior
+  properties 'Auto-Type for entries in this group' and
+  'Searching entries in this group'
+- Root group properties are now synchronized based on the last
+  modification time
+- While saving a database, a shutdown block reason is now
+  specified
+- Added 'Move to Group' menu in the 'Selected Entries' popup of
+  the main entry list context menu
+- Items of dynamic menus (tags, strings, attachments, password
+  generator profiles, ...) now have auto-assigned accelerator
+  keys
+- As alternative to Ctrl+F, pressing F3 in the main window now
+  displays the 'Find' dialog
+- Added UIFlags bit for hiding password quality progress bars
+  and information labels
+- Enhanced system font detection on Unix-like systems
+- When using 'xsel' for clipboard operations on Unix-like
+  systems, text is now copied into both the primary selection
+  and the clipboard
+- Added '--version' command line option (for Unix-like systems)
+- Plugins can now subscribe to an IPC event that is raised when
+  running KeePass with the '-e:' command line parameter
+- Added workaround for .NET AutoWordSelection bug
+- Added workaround for Mono bug 10163; saving files using
+  WebDAV now also works under Mono 2.11 and higher
+- Added workaround for Mono image tabs bug
+- Added workaround for Mono NumericUpDown drawing bug
+
+- Merged the URL scheme overrides and the 'Override all URLs'
+  option into a new dialog 'URL Overrides'
+- Improved autocompletion of IO connection parameters using the
+  MRU list (now treating the user name as filter)
+- Improved interaction of IO connection trigger parameters and
+  the MRU list
+- The master key prompt dialog now validates key files only
+  when clicking [OK], and invalid ones are not removed
+  automatically from the list anymore
+- Improved support for managing columns leftover from
+  uninstalled plugins in the 'Configure Columns' dialog
+- If the 'Unhide Passwords' policy is turned off, the passwords
+  column in the auto-type entry selection dialog is now
+  unavailable
+- The entry list in the main window is now updated immediately
+  after performing auto-type or copying data to the clipboard
+- Various list view performance improvements
+- The 'Searching entries in this group' group behavior
+  properties are now ignored during resolving field references
+- Improved behavior in case of syntax errors in placeholders
+  with parameters
+- Two-channel auto-type obfuscation: improved realization of
+  clipboard paste commands
+- General main window keyboard shortcuts now also work within
+  the quick search box and the database tab bar
+- Pressing Ctrl+Shift+Tab in the main window now always selects
+  the previous database tab (independent of which control has
+  the focus)
+- Changed shortcut keys for moving entries/groups on Unix-like
+  systems, due to Mono's incorrect handling of Alt (preventing
+  key events) and navigation keys (selection updated at the
+  wrong time)
+- Auto-Type: improved modifier key releasing on Unix-like
+  systems
+- Various code optimizations
+- Minor other improvements
+
+- A key-up event to the groups tree in the main window without
+  a corresponding key-down event does not change the entry list
+  anymore
+
+2014-04-13: 2.26
+- Added option to show a confirmation dialog when moving
+  entries/groups to the recycle bin
+- Auto-Type: added workaround for applications with broken
+  time-dependent message processing
+- Auto-Type: added workaround for PuTTY's default Ctrl+Alt
+  behavior (which differs from Windows' behavior)
+- Auto-Type: added configuration option to specify the default
+  delay between two keypresses
+- Added optional sequence comments column in the auto-type
+  entry selection dialog (in this column, only {C:...} comments
+  in the sequence are displayed; if a comment starts with '!',
+  only this comment is shown)
+- If the option 'Automatically search key files' is activated,
+  all drives are now scanned in parallel and any key files are
+  added asynchronously (this avoids issues caused by slow
+  network drives)
+- Added trigger action 'Show entries by tag'
+- {OPERA} placeholder: updated detection code to also support
+  the latest versions of Opera
+- {T-CONV:...} placeholder: added 'Uri' type (for converting
+  the string to its URI-escaped representation)
+- Synchronization functions are now available for remote
+  databases, too
+- Enhanced RoboForm importer to additionally support the new
+  file format
+- Summary lists are now also available in delete confirmation
+  dialogs on Unix-like systems and Windows XP and earlier
+- Added workaround for Mono Process StdIn BOM bug
+- KPScript: added 'refx-All' option (matches all entries)
+- KPScript: added optional parameters 'setx-Expires' and
+  'setx-ExpiryTime' for the 'EditEntry' command
+
+- Improved database tab selection after closing an inactive
+  database
+- New just-in-time MRU files list
+- Improved selection of entries created by the password
+  generator
+- The internal text editor now determines the newline sequence
+  that the data is using the most when opening it, and converts
+  all newline sequences to the initial sequence when saving the
+  data
+- Improved realization of the {CLEARFIELD} command (now using
+  Bksp instead of Del, in order to avoid Ctrl+Alt+Del issues on
+  newer Windows systems)
+- The note that deleting a group will also delete all subgroups
+  and entries within this group is now only displayed if the
+  group is not empty
+- Improved GUI thread safety of the update check dialog
+- Improved HTML generation
+- Improved version formatting
+- On Unix-like systems, window state automations are now
+  disabled during initial auto-type target window switches
+- On Unix-like systems, the button to choose a password font is
+  disabled now (because this is unsupported due to Mono bug
+  5795)
+- Various files (e.g. 'History.txt') are now encoded using
+  UTF-8
+- Improved build system
+- Various code optimizations
+- Minor other improvements
+
+- In the 'Configure Columns' dialog, the activation states of
+  plugin-provided columns are now preset correctly
+
 2014-02-03: 2.25
 - New auto-type key sending engine (improved support for
   sending Unicode characters and for sending keypresses into
@@ -506,7 +769,7 @@
 - Added workaround to support loading data from version
   information files even when they have incorrectly been
   decompressed by a web filter
-- Added workarounds for '°', '|' and '£' .NET SendKeys issues
+- Added workarounds for 'Â°', '|' and 'Â£' .NET SendKeys issues
 - Added workaround for topmost window .NET/Windows issue (the
   'Always on Top' option now works even when switching to a
   different window while KeePass is starting up)

@@ -217,6 +217,9 @@ namespace KeePass.Util.XmlSerialization
 					case "UseFileLocks":
 						o.UseFileLocks = ReadBoolean(xr);
 						break;
+					case "SaveForceSync":
+						o.SaveForceSync = ReadBoolean(xr);
+						break;
 					case "FileClosing":
 						o.FileClosing = ReadAceCloseDb(xr);
 						break;
@@ -462,6 +465,9 @@ namespace KeePass.Util.XmlSerialization
 						break;
 					case "ShowDbMntncResultsDialog":
 						o.ShowDbMntncResultsDialog = ReadBoolean(xr);
+						break;
+					case "ShowRecycleConfirmDialog":
+						o.ShowRecycleConfirmDialog = ReadBoolean(xr);
 						break;
 					case "UseCustomToolStripRenderer":
 						o.UseCustomToolStripRenderer = ReadBoolean(xr);
@@ -796,6 +802,9 @@ namespace KeePass.Util.XmlSerialization
 						break;
 					case "AutoTypeCancelOnTitleChange":
 						o.AutoTypeCancelOnTitleChange = ReadBoolean(xr);
+						break;
+					case "AutoTypeInterKeyDelay":
+						o.AutoTypeInterKeyDelay = ReadInt32(xr);
 						break;
 					case "ProxyType":
 						o.ProxyType = ReadProxyServerType(xr);

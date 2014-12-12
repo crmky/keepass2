@@ -142,7 +142,8 @@ namespace KeePass.Forms
 		{
 			m_lvCustomIcons.Items.Clear();
 
-			ImageList ilCustom = UIUtil.BuildImageList(m_pwDatabase.CustomIcons, 16, 16);
+			ImageList ilCustom = UIUtil.BuildImageList(m_pwDatabase.CustomIcons,
+				DpiUtil.ScaleIntX(16), DpiUtil.ScaleIntY(16));
 			m_lvCustomIcons.SmallImageList = ilCustom;
 
 			int j = 0, iFoundCustom = -1;
@@ -333,7 +334,7 @@ namespace KeePass.Forms
 
 			foreach(ListViewItem lvi in lvsicSel)
 			{
-				PwUuid uuidIcon = lvi.Tag as PwUuid;
+				PwUuid uuidIcon = (lvi.Tag as PwUuid);
 
 				Debug.Assert(uuidIcon != null);
 				if(uuidIcon != null) vUuidsToDelete.Add(uuidIcon);

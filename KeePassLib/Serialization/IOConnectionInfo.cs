@@ -122,7 +122,7 @@ namespace KeePassLib.Serialization
 
 		private bool m_bComplete = false;
 		[XmlIgnore]
-		internal bool IsComplete // Credentials etc. fully specified
+		public bool IsComplete // Credentials etc. fully specified
 		{
 			get { return m_bComplete; }
 			set { m_bComplete = value; }
@@ -139,11 +139,17 @@ namespace KeePassLib.Serialization
 			return (IOConnectionInfo)this.MemberwiseClone();
 		}
 
+#if DEBUG // For debugger display only
+		public override string ToString()
+		{
+			return GetDisplayName();
+		}
+#endif
+
 		/*
 		/// <summary>
 		/// Serialize the current connection info to a string. Credentials
-		/// are only serialized if the <c>SaveCredentials</c> property
-		/// is <c>true</c>.
+		/// are serialized based on the <c>CredSaveMode</c> property.
 		/// </summary>
 		/// <param name="iocToCompile">Input object to be serialized.</param>
 		/// <returns>Serialized object as string.</returns>

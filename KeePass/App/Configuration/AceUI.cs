@@ -59,6 +59,7 @@ namespace KeePass.App.Configuration
 		DisablePlugins = 0x2,
 		DisableTriggers = 0x4,
 		DisableKeyChangeDays = 0x8,
+		HidePwQuality = 0x10,
 
 		HideBuiltInPwGenPrfInEntryDlg = 0x10000,
 		ShowLastAccessTime = 0x20000
@@ -75,6 +76,7 @@ namespace KeePass.App.Configuration
 		ColUrl = 0x8,
 		ColNotes = 0x10,
 		ColSequence = 0x20,
+		ColSequenceComments = 0x40,
 
 		Default = (ColTitle | ColUserName | ColUrl | ColSequence)
 	}
@@ -166,6 +168,14 @@ namespace KeePass.App.Configuration
 		{
 			get { return m_bShowDbMntncResDlg; }
 			set { m_bShowDbMntncResDlg = value; }
+		}
+
+		private bool m_bShowRecycleDlg = true;
+		[DefaultValue(true)]
+		public bool ShowRecycleConfirmDialog
+		{
+			get { return m_bShowRecycleDlg; }
+			set { m_bShowRecycleDlg = value; }
 		}
 
 		private bool m_bUseCustomTsRenderer = true;

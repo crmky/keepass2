@@ -95,7 +95,7 @@ namespace KeePass.Forms
 			bmpBig.Dispose();
 			m_picAccWarning.Image = m_imgAccWarning;
 
-			m_ttRect.SetToolTip(m_cbHidePassword, KPRes.TogglePasswordAsterisks);
+			// m_ttRect.SetToolTip(m_cbHidePassword, KPRes.TogglePasswordAsterisks);
 			m_ttRect.SetToolTip(m_btnSaveKeyFile, KPRes.KeyFileCreate);
 			m_ttRect.SetToolTip(m_btnOpenKeyFile, KPRes.KeyFileUseExisting);
 			m_ttRect.SetToolTip(m_tbRepeatPassword, KPRes.PasswordRepeatHint);
@@ -105,7 +105,7 @@ namespace KeePass.Forms
 
 			m_icgPassword.Attach(m_tbPassword, m_cbHidePassword, m_lblRepeatPassword,
 				m_tbRepeatPassword, m_lblEstimatedQuality, m_pbPasswordQuality,
-				m_lblQualityBits, this, true, false);
+				m_lblQualityInfo, m_ttRect, this, true, false);
 
 			m_cmbKeyFile.Items.Add(KPRes.NoKeyFileSpecifiedMeta);
 			foreach(KeyProvider prov in Program.KeyProviderPool)
@@ -134,7 +134,7 @@ namespace KeePass.Forms
 		{
 			// Focusing doesn't always work in OnFormLoad;
 			// https://sourceforge.net/p/keepass/feature-requests/1735/
-			if(m_tbPassword.CanFocus) UIUtil.SetFocus(m_tbPassword, this);
+			if(m_tbPassword.CanFocus) UIUtil.ResetFocus(m_tbPassword, this);
 			else if(m_cmbKeyFile.CanFocus) UIUtil.SetFocus(m_cmbKeyFile, this);
 			else if(m_btnCreate.CanFocus) UIUtil.SetFocus(m_btnCreate, this);
 			else { Debug.Assert(false); }

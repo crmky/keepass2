@@ -62,6 +62,7 @@ namespace KeePass.Forms
 		private Keys m_kPrevSWHKKey = Keys.None;
 
 		private AceUrlSchemeOverrides m_aceUrlSchemeOverrides = null;
+		private string m_strUrlOverrideAll = string.Empty;
 
 		private bool m_bInitialTsRenderer = true;
 		public bool RequiresUIReinitialize
@@ -129,6 +130,7 @@ namespace KeePass.Forms
 				m_tabMain.SelectedTab = m_tabMain.TabPages[(int)uTab];
 
 			m_aceUrlSchemeOverrides = Program.Config.Integration.UrlSchemeOverrides.CloneDeep();
+			m_strUrlOverrideAll = Program.Config.Integration.UrlOverride;
 
 			m_cmbBannerStyle.Items.Add("(" + KPRes.CurrentStyle + ")");
 			m_cmbBannerStyle.Items.Add("WinXP Login");
@@ -145,7 +147,7 @@ namespace KeePass.Forms
 				m_cmbBannerStyle.Enabled = false;
 			}
 
-			int nWidth = m_lvPolicy.ClientRectangle.Width - UIUtil.GetVScrollBarWidth() - 1;
+			int nWidth = m_lvPolicy.ClientSize.Width - UIUtil.GetVScrollBarWidth();
 			m_lvPolicy.Columns.Add(KPRes.Feature, (nWidth * 10) / 29);
 			m_lvPolicy.Columns.Add(KPRes.Description, (nWidth * 19) / 29);
 
@@ -243,7 +245,7 @@ namespace KeePass.Forms
 			if(AppConfigEx.IsOptionEnforced(Program.Config.Security, "ClipboardClearAfterSeconds"))
 				m_cbClipClearTime.Enabled = false;
 
-			m_lvSecurityOptions.Columns.Add(string.Empty, 200); // Resize below
+			m_lvSecurityOptions.Columns.Add(string.Empty); // Resize below
 
 			ListViewGroup lvg = new ListViewGroup(KPRes.Options);
 			m_lvSecurityOptions.Groups.Add(lvg);
@@ -279,8 +281,7 @@ namespace KeePass.Forms
 				lvg, KPRes.ClearKeyCmdLineParams);
 
 			m_cdxSecurityOptions.UpdateData(false);
-			m_lvSecurityOptions.Columns[0].Width = m_lvSecurityOptions.ClientRectangle.Width -
-				UIUtil.GetVScrollBarWidth() - 1;
+			UIUtil.ResizeColumns(m_lvSecurityOptions, true);
 		}
 
 		private void LoadPolicyOption(string strPropertyName, string strDisplayName,
@@ -296,7 +297,7 @@ namespace KeePass.Forms
 			m_cdxPolicy = new CheckedLVItemDXList(m_lvPolicy, true);
 
 			LoadPolicyOption("Plugins", KPRes.Plugins, KPRes.PolicyPluginsDesc);
-			LoadPolicyOption("Export", KPRes.Export, KPRes.PolicyExportDesc);
+			LoadPolicyOption("Export", KPRes.Export, KPRes.PolicyExportDesc2);
 			LoadPolicyOption("ExportNoKey", KPRes.Export + " - " + KPRes.NoKeyRepeat,
 				KPRes.PolicyExportNoKeyDesc);
 			LoadPolicyOption("Import", KPRes.Import, KPRes.PolicyImportDesc);
@@ -324,7 +325,7 @@ namespace KeePass.Forms
 		{
 			m_bInitialTsRenderer = Program.Config.UI.UseCustomToolStripRenderer;
 
-			m_lvGuiOptions.Columns.Add(KPRes.Options, 200); // Resize below
+			m_lvGuiOptions.Columns.Add(KPRes.Options); // Resize below
 
 			ListViewGroup lvg = new ListViewGroup(KPRes.MainWindow);
 			m_lvGuiOptions.Groups.Add(lvg);
@@ -399,6 +400,13 @@ namespace KeePass.Forms
 			m_cdxGuiOptions.CreateItem(Program.Config.MainWindow, "FocusQuickFindOnUntray",
 				lvg, KPRes.FocusQuickFindOnUntray);
 
+			lvg = new ListViewGroup(KPRes.Dialogs);
+			m_lvGuiOptions.Groups.Add(lvg);
+			m_cdxGuiOptions.CreateItem(Program.Config.UI, "ShowRecycleConfirmDialog",
+				lvg, KPRes.RecycleShowConfirm);
+			m_cdxGuiOptions.CreateItem(Program.Config.UI, "ShowDbMntncResultsDialog",
+				lvg, KPRes.DbMntncResults);
+
 			lvg = new ListViewGroup(KPRes.Advanced);
 			m_lvGuiOptions.Groups.Add(lvg);
 			m_cdxGuiOptions.CreateItem(Program.Config.UI, "RepeatPasswordOnlyWhenHidden",
@@ -407,12 +415,9 @@ namespace KeePass.Forms
 				lvg, KPRes.UseCustomToolStripRenderer);
 			m_cdxGuiOptions.CreateItem(Program.Config.UI, "ForceSystemFontUnix",
 				lvg, KPRes.ForceSystemFontUnix);
-			m_cdxGuiOptions.CreateItem(Program.Config.UI, "ShowDbMntncResultsDialog",
-				lvg, KPRes.DbMntncResults);
 
 			m_cdxGuiOptions.UpdateData(false);
-			m_lvGuiOptions.Columns[0].Width = m_lvGuiOptions.ClientRectangle.Width -
-				UIUtil.GetVScrollBarWidth() - 1;
+			UIUtil.ResizeColumns(m_lvGuiOptions, true);
 
 			try { m_numMruCount.Value = Program.Config.Application.MostRecentlyUsed.MaxItemCount; }
 			catch(Exception) { Debug.Assert(false); m_numMruCount.Value = AceMru.DefaultMaxItemCount; }
@@ -424,7 +429,8 @@ namespace KeePass.Forms
 
 			if(AppConfigEx.IsOptionEnforced(Program.Config.UI, "StandardFont"))
 				m_btnSelFont.Enabled = false;
-			if(AppConfigEx.IsOptionEnforced(Program.Config.UI, "PasswordFont"))
+			if(AppConfigEx.IsOptionEnforced(Program.Config.UI, "PasswordFont") ||
+				MonoWorkarounds.IsRequired(5795))
 				m_btnSelPwFont.Enabled = false;
 		}
 
@@ -459,20 +465,11 @@ namespace KeePass.Forms
 			m_cbSingleClickTrayAction.Checked = Program.Config.UI.TrayIcon.SingleClickDefault;
 			if(AppConfigEx.IsOptionEnforced(Program.Config.UI.TrayIcon, "SingleClickDefault"))
 				m_cbSingleClickTrayAction.Enabled = false;
-
-			string strOverride = Program.Config.Integration.UrlOverride;
-			m_cbUrlOverride.Checked = (strOverride.Length > 0);
-			m_tbUrlOverride.Text = strOverride;
-			if(AppConfigEx.IsOptionEnforced(Program.Config.Integration, "UrlOverride"))
-				m_cbUrlOverride.Enabled = false;
-
-			if(AppConfigEx.IsOptionEnforced(Program.Config.Integration, "UrlSchemeOverrides"))
-				m_btnSchemeOverrides.Enabled = false;
 		}
 
 		private void LoadAdvancedOptions()
 		{
-			m_lvAdvanced.Columns.Add(string.Empty, 200); // Resize below
+			m_lvAdvanced.Columns.Add(string.Empty); // Resize below
 
 			m_cdxAdvanced = new CheckedLVItemDXList(m_lvAdvanced, true);
 
@@ -527,6 +524,8 @@ namespace KeePass.Forms
 				lvg, KPRes.UseTransactedDatabaseWrites);
 			m_cdxAdvanced.CreateItem(Program.Config.Application, "UseFileLocks",
 				lvg, KPRes.UseFileLocks + " " + KPRes.NotRecommended);
+			m_cdxAdvanced.CreateItem(Program.Config.Application, "SaveForceSync",
+				lvg, KPRes.SaveForceSync);
 			m_cdxAdvanced.CreateItem(Program.Config.Security, "SslCertsAcceptInvalid",
 				lvg, KPRes.SslCertsAcceptInvalid);
 
@@ -562,8 +561,7 @@ namespace KeePass.Forms
 				lvg, KPRes.OptimizeForScreenReader);
 
 			m_cdxAdvanced.UpdateData(false);
-			m_lvAdvanced.Columns[0].Width = m_lvAdvanced.ClientRectangle.Width -
-				UIUtil.GetVScrollBarWidth() - 1;
+			UIUtil.ResizeColumns(m_lvAdvanced, true);
 
 			if(AppConfigEx.IsOptionEnforced(Program.Config.Integration, "ProxyType") ||
 				AppConfigEx.IsOptionEnforced(Program.Config.Integration, "ProxyAddress"))
@@ -642,13 +640,10 @@ namespace KeePass.Forms
 
 			Program.Config.UI.TrayIcon.SingleClickDefault = m_cbSingleClickTrayAction.Checked;
 
-			if(m_cbUrlOverride.Checked)
-				Program.Config.Integration.UrlOverride = m_tbUrlOverride.Text;
-			else Program.Config.Integration.UrlOverride = string.Empty;
+			Program.Config.Integration.UrlSchemeOverrides = m_aceUrlSchemeOverrides;
+			Program.Config.Integration.UrlOverride = m_strUrlOverrideAll;
 
 			m_cdxAdvanced.UpdateData(true);
-
-			Program.Config.Integration.UrlSchemeOverrides = m_aceUrlSchemeOverrides;
 
 			Program.Config.Apply(AceApplyFlags.All);
 		}
@@ -713,9 +708,6 @@ namespace KeePass.Forms
 			m_numClipClearTime.Enabled = (m_cbClipClearTime.Checked &&
 				m_cbClipClearTime.Enabled);
 
-			m_tbUrlOverride.Enabled = (m_cbUrlOverride.Checked &&
-				m_cbUrlOverride.Enabled);
-
 			m_bBlockUIUpdate = false;
 		}
 
@@ -751,7 +743,7 @@ namespace KeePass.Forms
 			if(fOld.OverrideUIDefault) dlg.Font = fOld.ToFont();
 			else
 			{
-				try { dlg.Font = m_tbUrlOverride.Font; }
+				try { dlg.Font = m_lvSecurityOptions.Font; }
 				catch(Exception) { Debug.Assert(false); }
 			}
 
@@ -775,7 +767,7 @@ namespace KeePass.Forms
 				try
 				{
 					dlg.Font = new Font(FontFamily.GenericMonospace,
-						m_tbUrlOverride.Font.SizeInPoints);
+						m_lvSecurityOptions.Font.SizeInPoints);
 				}
 				catch(Exception) { Debug.Assert(false); }
 			}
@@ -831,11 +823,6 @@ namespace KeePass.Forms
 			}
 		}
 
-		private void OnOverrideURLsCheckedChanged(object sender, EventArgs e)
-		{
-			UpdateUIState();
-		}
-
 		private void OnFormClosed(object sender, FormClosedEventArgs e)
 		{
 			CleanUpEx();
@@ -852,11 +839,15 @@ namespace KeePass.Forms
 			UpdateUIState();
 		}
 
-		private void OnBtnUrlSchemeOverrides(object sender, EventArgs e)
+		private void OnBtnUrlOverrides(object sender, EventArgs e)
 		{
-			UrlSchemesForm dlg = new UrlSchemesForm();
-			dlg.InitEx(m_aceUrlSchemeOverrides);
-			UIUtil.ShowDialogAndDestroy(dlg);
+			UrlOverridesForm dlg = new UrlOverridesForm();
+			dlg.InitEx(m_aceUrlSchemeOverrides, m_strUrlOverrideAll);
+
+			if(dlg.ShowDialog() == DialogResult.OK)
+				m_strUrlOverrideAll = dlg.UrlOverrideAll;
+
+			UIUtil.DestroyForm(dlg);
 		}
 
 		private void OnHotKeyHelpLinkClicked(object sender, LinkLabelLinkClickedEventArgs e)

@@ -181,6 +181,9 @@
     <Compile Include="..\KeePassLib\Native\NativeMethods.cs">
       <Link>KeePassLib\Native\NativeMethods.cs</Link>
     </Compile>
+    <Compile Include="..\KeePassLib\Native\NativeMethods.Unix.cs">
+      <Link>KeePassLib\Native\NativeMethods.Unix.cs</Link>
+    </Compile>
     <Compile Include="..\KeePassLib\PwCustomIcon.cs">
       <Link>KeePassLib\PwCustomIcon.cs</Link>
     </Compile>
@@ -284,6 +287,9 @@
     <Compile Include="..\KeePassLib\Utility\MessageService.cs">
       <Link>KeePassLib\Utility\MessageService.cs</Link>
     </Compile>
+    <Compile Include="..\KeePassLib\Utility\MonoWorkarounds.cs">
+      <Link>KeePassLib\Utility\MonoWorkarounds.cs</Link>
+    </Compile>
     <Compile Include="..\KeePassLib\Utility\StrUtil.cs">
       <Link>KeePassLib\Utility\StrUtil.cs</Link>
     </Compile>
@@ -361,6 +367,7 @@
     <Compile Include="DataExchange\Formats\SteganosPwManager2007.cs" />
     <Compile Include="DataExchange\Formats\StickyPwXml50.cs" />
     <Compile Include="DataExchange\Formats\TurboPwsCsv5.cs" />
+    <Compile Include="DataExchange\Formats\VisKeeperTxt3.cs" />
     <Compile Include="DataExchange\Formats\Whisper32Csv116.cs" />
     <Compile Include="DataExchange\FileFormatPool.cs" />
     <Compile Include="DataExchange\Formats\WinFavorites10.cs" />
@@ -376,6 +383,7 @@
     <Compile Include="Ecas\EcasContext.cs" />
     <Compile Include="Ecas\EcasEnum.cs" />
     <Compile Include="Ecas\EcasParameter.cs" />
+    <Compile Include="Ecas\EcasPropertyDictionary.cs" />
     <Compile Include="Ecas\EcasSystemEvents.cs" />
     <Compile Include="Ecas\EcasValueType.cs" />
     <Compile Include="Ecas\IEcasObject.cs" />
@@ -661,17 +669,17 @@
     <Compile Include="Forms\UpdateCheckForm.Designer.cs">
       <DependentUpon>UpdateCheckForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="Forms\UrlSchemeForm.cs">
+    <Compile Include="Forms\UrlOverrideForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Forms\UrlSchemeForm.Designer.cs">
-      <DependentUpon>UrlSchemeForm.cs</DependentUpon>
+    <Compile Include="Forms\UrlOverrideForm.Designer.cs">
+      <DependentUpon>UrlOverrideForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="Forms\UrlSchemesForm.cs">
+    <Compile Include="Forms\UrlOverridesForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Forms\UrlSchemesForm.Designer.cs">
-      <DependentUpon>UrlSchemesForm.cs</DependentUpon>
+    <Compile Include="Forms\UrlOverridesForm.Designer.cs">
+      <DependentUpon>UrlOverridesForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Forms\XmlReplaceForm.cs">
       <SubType>Form</SubType>
@@ -699,6 +707,9 @@
     </Compile>
     <Compile Include="UI\ColumnProvider.cs" />
     <Compile Include="UI\ColumnProviderPool.cs" />
+    <Compile Include="UI\CustomContextMenuStripEx.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="UI\CustomListViewEx.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -716,6 +727,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="UI\DocumentManagerEx.cs" />
+    <Compile Include="UI\DpiUtil.cs" />
     <Compile Include="UI\DwmUtil.cs" />
     <Compile Include="UI\EnableThemingInScope.cs" />
     <Compile Include="UI\ExpiryControlGroup.cs" />
@@ -945,11 +957,11 @@
     <EmbeddedResource Include="Forms\UpdateCheckForm.resx">
       <DependentUpon>UpdateCheckForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Forms\UrlSchemeForm.resx">
-      <DependentUpon>UrlSchemeForm.cs</DependentUpon>
+    <EmbeddedResource Include="Forms\UrlOverrideForm.resx">
+      <DependentUpon>UrlOverrideForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Forms\UrlSchemesForm.resx">
-      <DependentUpon>UrlSchemesForm.cs</DependentUpon>
+    <EmbeddedResource Include="Forms\UrlOverridesForm.resx">
+      <DependentUpon>UrlOverridesForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\XmlReplaceForm.resx">
       <DependentUpon>XmlReplaceForm.cs</DependentUpon>
@@ -997,6 +1009,7 @@
     <Compile Include="Ecas\EcasUtil.cs" />
     <Compile Include="Ecas\IEcasParameterized.cs" />
     <Compile Include="Util\CriticalSectionEx.cs" />
+    <Compile Include="Util\CustomResourceManager.cs" />
     <Compile Include="Util\EntryMenu.cs" />
     <Compile Include="Util\EntryTemplates.cs" />
     <Compile Include="Util\EntryUtil.cs" />
@@ -1006,7 +1019,6 @@
     <Compile Include="Util\IpcBroadcast.Fsw.cs" />
     <Compile Include="Util\IpcUtilEx.cs" />
     <Compile Include="Util\KeyUtil.cs" />
-    <Compile Include="Util\MonoWorkarounds.cs" />
     <Compile Include="Util\NetUtil.cs" />
     <Compile Include="Util\PwGeneratorUtil.cs" />
     <Compile Include="Util\SearchUtil.cs" />
@@ -1020,10 +1032,12 @@
     <Compile Include="Util\SessionLockNotifier.cs" />
     <Compile Include="Util\HotKeyManager.cs" />
     <Compile Include="Util\ShellUtil.cs" />
+    <Compile Include="Util\ShutdownBlocker.cs" />
     <Compile Include="Util\Spr\SprContext.cs" />
     <Compile Include="Util\Spr\SprEncoding.cs" />
     <Compile Include="Util\Spr\SprEngine.cs" />
     <Compile Include="Util\Spr\SprEngine.PickChars.cs" />
+    <Compile Include="Util\Spr\SprSyntax.cs" />
     <Compile Include="Util\TempFilesPool.cs" />
     <Compile Include="Util\TextSimilarity.cs" />
     <Compile Include="Util\UpdateCheckEx.cs" />
@@ -1133,9 +1147,6 @@
     <None Include="Resources\Nuvola\B16x16_Folder_Blue_Open.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\Images\B17x05_3BlackDots.png" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="Resources\Nuvola\B16x16_No.png" />
   </ItemGroup>
   <ItemGroup>
@@ -1155,6 +1166,13 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="KeePass.ico" />
+    <None Include="Resources\Nuvola\B16x16_MessageBox_Warning.png" />
+    <None Include="Resources\Nuvola\B16x16_MessageBox_Info.png" />
+    <None Include="Resources\Nuvola\B16x16_MessageBox_Critical.png" />
+    <None Include="Resources\Images\B16x16_Transparent.png" />
+    <None Include="Resources\Images\B19x07_3BlackDots.png" />
+    <None Include="Resources\Images\B16x16_MenuCheck.png" />
+    <None Include="Resources\Images\B16x16_Imp_VisKeeper.png" />
     <None Include="Resources\Images\B16x16_Imp_Dashlane.png" />
     <None Include="Resources\Images\B16x16_Imp_NortonIdSafe.png" />
     <None Include="Resources\Data\MostPopularPasswords.txt.gz" />
@@ -1239,7 +1257,6 @@
     <None Include="Resources\Nuvola\B48x48_KOrganizer.png" />
     <None Include="Resources\Nuvola\B32x32_Trashcan_Full.png" />
     <None Include="Resources\Nuvola\B16x16_View_Detailed.png" />
-    <None Include="Resources\Images\B284x231_Random.png" />
     <None Include="Resources\Images\B16x16_KeePass.png" />
     <None Include="Resources\Nuvola\B16x16_BlockDevice.png" />
     <None Include="Resources\Nuvola\B16x16_File_Locked.png" />

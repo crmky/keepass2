@@ -211,6 +211,13 @@ namespace KeePass.DataExchange
 				dlgStatus.SetText(KPRes.Synchronizing + " (" +
 					KPRes.SavingDatabase + ")", LogStatusType.Info);
 
+				MainForm mf = Program.MainForm; // Null for KPScript
+				if(mf != null)
+				{
+					try { mf.DocumentManager.ActiveDatabase = pwDatabase; }
+					catch(Exception) { Debug.Assert(false); }
+				}
+
 				if(uiOps.UIFileSave(bForceSave))
 				{
 					foreach(IOConnectionInfo ioc in vConnections)
@@ -231,11 +238,11 @@ namespace KeePass.DataExchange
 								}
 								else pwDatabase.SaveAs(ioc, false, null);
 							}
-							else { } // No assert (sync on save)
+							// else { } // No assert (sync on save)
 
-							if(Program.MainForm != null) // Null for KPScript
-								Program.MainForm.FileMruList.AddItem(
-									ioc.GetDisplayName(), ioc.CloneDeep(), true);
+							if(mf != null)
+								mf.FileMruList.AddItem(ioc.GetDisplayName(),
+									ioc.CloneDeep());
 						}
 						catch(Exception exSync)
 						{
@@ -407,7 +414,7 @@ namespace KeePass.DataExchange
 			"member", "member #",
 
 			// Non-English names
-			"nom"
+			"nom", "benutzername"
 		};
 
 		private static readonly string[] m_vPasswords = {
@@ -416,7 +423,10 @@ namespace KeePass.DataExchange
 			"secret", "secret word",
 			"key", "keyword", "key word", "keyphrase", "key phrase",
 			"form_pw", "wppassword", "pin", "pwd", "pw", "pword",
-			"p", "serial", "serial#", "license key", "reg #"
+			"p", "serial", "serial#", "license key", "reg #",
+
+			// Non-English names
+			"passwort"
 		};
 
 		private static readonly string[] m_vUrls = {
@@ -426,13 +436,16 @@ namespace KeePass.DataExchange
 			"web-site",
 
 			// Non-English names
-			"ort"
+			"ort", "adresse"
 		};
 
 		private static readonly string[] m_vNotes = {
 			"note", "notes", "comment", "comments", "memo",
 			"description", "free form", "freeform",
-			"free text", "freetext", "free"
+			"free text", "freetext", "free",
+
+			// Non-English names
+			"kommentar"
 		};
 
 		private static readonly string[] m_vSubstrTitles = {

@@ -34,8 +34,7 @@ using KeePassLib.Security;
 
 namespace KeePassLib.Cryptography
 {
-/* #pragma warning disable 1591
-	/// <summary>
+	/* /// <summary>
 	/// Return values of the <c>SelfTest.Perform</c> method.
 	/// </summary>
 	public enum SelfTestResult
@@ -44,8 +43,7 @@ namespace KeePassLib.Cryptography
 		RijndaelEcbError = 1,
 		Salsa20Error = 2,
 		NativeKeyTransformationError = 3
-	}
-#pragma warning restore 1591 */
+	} */
 
 	/// <summary>
 	/// Class containing self-test methods.
@@ -151,7 +149,7 @@ namespace KeePassLib.Cryptography
 			Salsa20Cipher c = new Salsa20Cipher(pbKey, pbIV);
 			c.Encrypt(pb, pb.Length, false);
 			if(!MemUtil.ArraysEqual(pb, pbExpected))
-				throw new SecurityException("Salsa20.");
+				throw new SecurityException("Salsa20-1");
 
 #if DEBUG
 			// Extended test in debug mode
@@ -168,13 +166,24 @@ namespace KeePassLib.Cryptography
 			int nPos = Salsa20ToPos(c, r, pb.Length, 65536);
 			c.Encrypt(pb, pb.Length, false);
 			if(!MemUtil.ArraysEqual(pb, pbExpected2))
-				throw new SecurityException("Salsa20-2.");
+				throw new SecurityException("Salsa20-2");
 
 			nPos = Salsa20ToPos(c, r, nPos + pb.Length, 131008);
 			Array.Clear(pb, 0, pb.Length);
 			c.Encrypt(pb, pb.Length, true);
 			if(!MemUtil.ArraysEqual(pb, pbExpected3))
-				throw new SecurityException("Salsa20-3.");
+				throw new SecurityException("Salsa20-3");
+
+			Dictionary<string, bool> d = new Dictionary<string, bool>();
+			const int nRounds = 100;
+			for(int i = 0; i < nRounds; ++i)
+			{
+				byte[] z = new byte[32];
+				c = new Salsa20Cipher(z, BitConverter.GetBytes((long)i));
+				c.Encrypt(z, z.Length, true);
+				d[MemUtil.ByteArrayToHexString(z)] = true;
+			}
+			if(d.Count != nRounds) throw new SecurityException("Salsa20-4");
 #endif
 		}
 
@@ -252,6 +261,34 @@ namespace KeePassLib.Cryptography
 			pbN = enc.GetBytes("012b");
 			if(MemUtil.IndexOf<byte>(pb, pbN) >= 0)
 				throw new InvalidOperationException("MemUtil-7");
+
+			byte[] pbRes = MemUtil.ParseBase32("MY======");
+			byte[] pbExp = Encoding.ASCII.GetBytes("f");
+			if(!MemUtil.ArraysEqual(pbRes, pbExp)) throw new Exception("Base32-1");
+
+			pbRes = MemUtil.ParseBase32("MZXQ====");
+			pbExp = Encoding.ASCII.GetBytes("fo");
+			if(!MemUtil.ArraysEqual(pbRes, pbExp)) throw new Exception("Base32-2");
+
+			pbRes = MemUtil.ParseBase32("MZXW6===");
+			pbExp = Encoding.ASCII.GetBytes("foo");
+			if(!MemUtil.ArraysEqual(pbRes, pbExp)) throw new Exception("Base32-3");
+
+			pbRes = MemUtil.ParseBase32("MZXW6YQ=");
+			pbExp = Encoding.ASCII.GetBytes("foob");
+			if(!MemUtil.ArraysEqual(pbRes, pbExp)) throw new Exception("Base32-4");
+
+			pbRes = MemUtil.ParseBase32("MZXW6YTB");
+			pbExp = Encoding.ASCII.GetBytes("fooba");
+			if(!MemUtil.ArraysEqual(pbRes, pbExp)) throw new Exception("Base32-5");
+
+			pbRes = MemUtil.ParseBase32("MZXW6YTBOI======");
+			pbExp = Encoding.ASCII.GetBytes("foobar");
+			if(!MemUtil.ArraysEqual(pbRes, pbExp)) throw new Exception("Base32-6");
+
+			pbRes = MemUtil.ParseBase32("JNSXSIDQOJXXM2LEMVZCAYTBONSWIIDPNYQG63TFFV2GS3LFEBYGC43TO5XXEZDTFY======");
+			pbExp = Encoding.ASCII.GetBytes("Key provider based on one-time passwords.");
+			if(!MemUtil.ArraysEqual(pbRes, pbExp)) throw new Exception("Base32-7");
 #endif
 		}
 
@@ -325,6 +362,41 @@ namespace KeePassLib.Cryptography
 				throw new SecurityException("ProtectedString-8");
 			if(!ps.IsProtected) throw new SecurityException("ProtectedString-9");
 			if(!ps2.IsProtected) throw new SecurityException("ProtectedString-10");
+
+			Random r = new Random();
+			string str = string.Empty;
+			ps = new ProtectedString();
+			for(int i = 0; i < 100; ++i)
+			{
+				bool bProt = ((r.Next() % 4) != 0);
+				ps = ps.WithProtection(bProt);
+
+				int x = r.Next(str.Length + 1);
+				int c = r.Next(20);
+				char ch = (char)r.Next(1, 256);
+
+				string strIns = new string(ch, c);
+				str = str.Insert(x, strIns);
+				ps = ps.Insert(x, strIns);
+
+				if(ps.IsProtected != bProt)
+					throw new SecurityException("ProtectedString-11");
+				if(ps.ReadString() != str)
+					throw new SecurityException("ProtectedString-12");
+
+				ps = ps.WithProtection(bProt);
+
+				x = r.Next(str.Length);
+				c = r.Next(str.Length - x + 1);
+
+				str = str.Remove(x, c);
+				ps = ps.Remove(x, c);
+
+				if(ps.IsProtected != bProt)
+					throw new SecurityException("ProtectedString-13");
+				if(ps.ReadString() != str)
+					throw new SecurityException("ProtectedString-14");
+			}
 #endif
 		}
 
@@ -365,10 +437,16 @@ namespace KeePassLib.Cryptography
 				throw new InvalidOperationException("StrUtil-V3");
 			if(StrUtil.VersionToString(0x00FF000000000000UL) != "255")
 				throw new InvalidOperationException("StrUtil-V4");
-			if(StrUtil.VersionToString(0x00FF000000000000UL, true) != "255.0")
+			if(StrUtil.VersionToString(0x00FF000000000000UL, 2) != "255.0")
 				throw new InvalidOperationException("StrUtil-V5");
-			if(StrUtil.VersionToString(0x0000000000070000UL, true) != "0.0.7")
+			if(StrUtil.VersionToString(0x0000000000070000UL) != "0.0.7")
 				throw new InvalidOperationException("StrUtil-V6");
+			if(StrUtil.VersionToString(0x0000000000000000UL) != "0")
+				throw new InvalidOperationException("StrUtil-V7");
+			if(StrUtil.VersionToString(0x00000000FFFF0000UL, 4) != "0.0.65535.0")
+				throw new InvalidOperationException("StrUtil-V8");
+			if(StrUtil.VersionToString(0x0000000000000000UL, 4) != "0.0.0.0")
+				throw new InvalidOperationException("StrUtil-V9");
 
 			if(StrUtil.RtfEncodeChar('\u0000') != "\\u0?")
 				throw new InvalidOperationException("StrUtil-Rtf1");
